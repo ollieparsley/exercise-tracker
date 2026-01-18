@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  /* Custom color palette - fresh, light theme */
+  --color-cream: #f1ffe7;
+  --color-mint: #c2e7da;
+  --color-blue: #6290c3;
+  --color-navy: #1a1b41;
+  --color-lime: #baff29;
+
+  /* Legacy color mappings for compatibility */
+  --color-wine-dark: var(--color-cream);
+  --color-coral-red: #e63946;
+  --color-electric-cyan: var(--color-lime);
+  --color-maroon: var(--color-mint);
+  --color-warm-gray: var(--color-navy);
+
+  /* Semantic color aliases */
+  --color-background: var(--color-cream);
+  --color-surface: var(--color-mint);
+  --color-text-primary: var(--color-navy);
+  --color-text-accent: var(--color-blue);
+  --color-positive: var(--color-lime);
+  --color-negative: #e63946;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  background-color: var(--color-cream);
+  color: var(--color-navy);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Focus visible styles for accessibility */
+*:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+/* Custom scrollbar for light theme */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-cream);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-mint);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-blue);
+}
