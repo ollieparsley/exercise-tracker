@@ -83,9 +83,7 @@ export function SessionLogger({ dateKey }: SessionLoggerProps) {
                     className="w-3 h-3"
                     style={{ backgroundColor: getTypeColor(log.typeId) }}
                   />
-                  <span className="text-navy">
-                    {getTypeName(log.typeId)}
-                  </span>
+                  <span className="text-navy">{getTypeName(log.typeId)}</span>
                   <span className="text-blue font-bold tabular-nums">
                     {log.count > 0 ? "+" : ""}
                     {log.count}

@@ -14,10 +14,7 @@ export const ColorPicker = forwardRef<HTMLInputElement, ColorPickerProps>(
     return (
       <div className="flex flex-col gap-1">
         {label && (
-          <label
-            htmlFor={inputId}
-            className="text-navy text-sm font-medium"
-          >
+          <label htmlFor={inputId} className="text-navy text-sm font-medium">
             {label}
           </label>
         )}
