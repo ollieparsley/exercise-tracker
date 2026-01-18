@@ -1,18 +1,18 @@
 @import "tailwindcss";
 
 @theme {
-  /* Custom color palette - fresh, light theme */
-  --color-cream: #f1ffe7;
-  --color-mint: #c2e7da;
-  --color-blue: #6290c3;
-  --color-navy: #1a1b41;
-  --color-lime: #baff29;
+  /* Modern, professional color palette */
+  --color-cream: #f8f9fa;
+  --color-mint: #ffffff;
+  --color-blue: #16a085;
+  --color-navy: #2c3e50;
+  --color-lime: #27ae60;
 
   /* Legacy color mappings for compatibility */
   --color-wine-dark: var(--color-cream);
-  --color-coral-red: #e63946;
-  --color-electric-cyan: var(--color-lime);
-  --color-maroon: var(--color-mint);
+  --color-coral-red: #c0392b;
+  --color-electric-cyan: var(--color-blue);
+  --color-maroon: #ecf0f1;
   --color-warm-gray: var(--color-navy);
 
   /* Semantic color aliases */
@@ -21,7 +21,7 @@
   --color-text-primary: var(--color-navy);
   --color-text-accent: var(--color-blue);
   --color-positive: var(--color-lime);
-  --color-negative: #e63946;
+  --color-negative: #c0392b;
 }
 
 * {

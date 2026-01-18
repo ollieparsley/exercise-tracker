@@ -15,8 +15,8 @@ export default defineConfig({
         name: "Exercise Tracker",
         short_name: "Exercise",
         description: "Track your daily exercise goals",
-        theme_color: "#240115",
-        background_color: "#240115",
+        theme_color: "#16a085",
+        background_color: "#f8f9fa",
         display: "standalone",
         icons: [
           {

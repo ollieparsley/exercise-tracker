@@ -1,17 +1,24 @@
 import { NavLink } from "react-router-dom";
+import "@fortawesome/fontawesome-free/css/all.min.css";
 
-const navItems = [
-  { to: "/", label: "Dashboard", icon: "📊" },
-  { to: "/log", label: "Log", icon: "✏️" },
-  { to: "/history", label: "History", icon: "📅" },
-  { to: "/settings", label: "Settings", icon: "⚙️" },
+interface NavItem {
+  to: string;
+  label: string;
+  iconClass: string;
+}
+
+const navItems: NavItem[] = [
+  { to: "/", label: "Dashboard", iconClass: "fas fa-chart-line" },
+  { to: "/log", label: "Log", iconClass: "fas fa-pen" },
+  { to: "/history", label: "History", iconClass: "fas fa-calendar" },
+  { to: "/settings", label: "Settings", iconClass: "fas fa-gear" },
 ];
 
 export function Navigation() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-mint border-t border-navy/20 safe-area-pb">
       <div className="max-w-lg mx-auto flex">
-        {navItems.map(({ to, label, icon }) => (
+        {navItems.map(({ to, label, iconClass }) => (
           <NavLink
             key={to}
             to={to}
@@ -24,7 +31,7 @@ export function Navigation() {
           >
             {({ isActive }) => (
               <>
-                <span className="text-lg mb-0.5">{icon}</span>
+                <i className={`${iconClass} text-lg mb-0.5`} />
                 <span>{label}</span>
                 {isActive && (
                   <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-blue" />
