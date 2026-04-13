@@ -100,7 +100,12 @@ export function PerformanceChart() {
       if (!start || !end) return null;
       return { id: b.id, label: b.label, x1: start.label, x2: end.label };
     })
-    .filter(Boolean) as { id: string; label?: string; x1: string; x2: string }[];
+    .filter(Boolean) as {
+    id: string;
+    label?: string;
+    x1: string;
+    x2: string;
+  }[];
 
   // Adjust x-axis interval based on range
   const xAxisInterval = days <= 7 ? 0 : days <= 14 ? 1 : days <= 30 ? 2 : 4;
@@ -150,7 +155,11 @@ export function PerformanceChart() {
               axisLine={false}
               tickLine={false}
               tick={{ fill: "#1a1b41", fontSize: 10 }}
-              domain={[0, (dataMax: number) => Math.max(dataMax, state.settings.dailyGoal, 10)]}
+              domain={[
+                0,
+                (dataMax: number) =>
+                  Math.max(dataMax, state.settings.dailyGoal, 10),
+              ]}
             />
             <Tooltip content={<CustomTooltip />} cursor={false} />
             <ReferenceLine

@@ -1,4 +1,10 @@
-import type { AppState, ExerciseType, LogEntry, Settings, Break } from "@/types";
+import type {
+  AppState,
+  ExerciseType,
+  LogEntry,
+  Settings,
+  Break,
+} from "@/types";
 
 export interface ValidationResult {
   valid: boolean;
@@ -123,10 +129,7 @@ export function validateBreak(data: unknown): ValidationResult {
     errors.push("startDate must be a valid date string (YYYY-MM-DD)");
   }
 
-  if (
-    typeof b.endDate !== "string" ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(b.endDate)
-  ) {
+  if (typeof b.endDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(b.endDate)) {
     errors.push("endDate must be a valid date string (YYYY-MM-DD)");
   }
 
