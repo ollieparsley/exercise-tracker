@@ -1,4 +1,4 @@
-import type { AppState, ExerciseType, LogEntry, Settings } from "@/types";
+import type { AppState, ExerciseType, LogEntry, Settings, Break } from "@/types";
 
 export interface ValidationResult {
   valid: boolean;
@@ -101,6 +101,43 @@ export function validateLogEntry(data: unknown): ValidationResult {
 }
 
 /**
+ * Validates a Break object
+ */
+export function validateBreak(data: unknown): ValidationResult {
+  const errors: string[] = [];
+
+  if (!data || typeof data !== "object") {
+    return { valid: false, errors: ["Break must be an object"] };
+  }
+
+  const b = data as Record<string, unknown>;
+
+  if (typeof b.id !== "string" || b.id.length === 0) {
+    errors.push("id must be a non-empty string");
+  }
+
+  if (
+    typeof b.startDate !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(b.startDate)
+  ) {
+    errors.push("startDate must be a valid date string (YYYY-MM-DD)");
+  }
+
+  if (
+    typeof b.endDate !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(b.endDate)
+  ) {
+    errors.push("endDate must be a valid date string (YYYY-MM-DD)");
+  }
+
+  if (b.label !== undefined && typeof b.label !== "string") {
+    errors.push("label must be a string if provided");
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+/**
  * Validates the entire AppState object
  */
 export function validateAppState(data: unknown): ValidationResult {
@@ -144,7 +181,30 @@ export function validateAppState(data: unknown): ValidationResult {
     });
   }
 
+  // Validate breaks array (optional for backwards compatibility)
+  if (state.breaks !== undefined) {
+    if (!Array.isArray(state.breaks)) {
+      errors.push("breaks must be an array");
+    } else {
+      state.breaks.forEach((b, index) => {
+        const breakValidation = validateBreak(b);
+        if (!breakValidation.valid) {
+          errors.push(
+            ...breakValidation.errors.map((e) => `breaks[${index}]: ${e}`)
+          );
+        }
+      });
+    }
+  }
+
   return { valid: errors.length === 0, errors };
+}
+
+/**
+ * Type guard for Break
+ */
+export function isBreak(data: unknown): data is Break {
+  return validateBreak(data).valid;
 }
 
 /**

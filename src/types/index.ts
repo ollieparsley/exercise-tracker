@@ -18,10 +18,18 @@ export interface Settings {
   startDate: string; // YYYY-MM-DD format
 }
 
+export interface Break {
+  id: string;
+  startDate: string; // YYYY-MM-DD format
+  endDate: string; // YYYY-MM-DD format
+  label?: string;
+}
+
 export interface AppState {
   settings: Settings;
   types: ExerciseType[];
   logs: LogEntry[];
+  breaks: Break[];
 }
 
 export type ActionType =
@@ -32,6 +40,9 @@ export type ActionType =
   | { type: "ARCHIVE_TYPE"; payload: string }
   | { type: "ADD_LOG"; payload: LogEntry }
   | { type: "DELETE_LOG"; payload: string }
+  | { type: "ADD_BREAK"; payload: Break }
+  | { type: "UPDATE_BREAK"; payload: Break }
+  | { type: "DELETE_BREAK"; payload: string }
   | { type: "IMPORT_STATE"; payload: AppState }
   | { type: "RESET_STATE" };
 
@@ -39,5 +50,6 @@ export interface ChartDataPoint {
   dateKey: string;
   label: string;
   goal: number;
-  [typeId: string]: string | number; // Dynamic type counts
+  isBreak?: boolean;
+  [typeId: string]: string | number | boolean | undefined; // Dynamic type counts
 }

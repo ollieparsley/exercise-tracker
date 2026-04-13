@@ -10,7 +10,8 @@ export function TotalDebt() {
     state.logs,
     state.settings.dailyGoal,
     state.settings.startDate,
-    todayKey
+    todayKey,
+    state.breaks
   );
 
   const isPositive = debt >= 0;

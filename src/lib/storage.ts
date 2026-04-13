@@ -24,6 +24,7 @@ export const DEFAULT_STATE: AppState = {
     },
   ],
   logs: [],
+  breaks: [],
 };
 
 /**
@@ -40,6 +41,12 @@ export function loadState(): AppState {
     }
 
     const parsed = JSON.parse(stored);
+
+    // Migrate: add breaks if missing from older stored state
+    if (!Array.isArray(parsed.breaks)) {
+      parsed.breaks = [];
+    }
+
     const validation = validateAppState(parsed);
 
     if (!validation.valid) {

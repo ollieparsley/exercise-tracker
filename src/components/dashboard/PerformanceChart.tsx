@@ -6,6 +6,7 @@ import {
   YAxis,
   ResponsiveContainer,
   ReferenceLine,
+  ReferenceArea,
   Tooltip,
 } from "recharts";
 import { Card } from "@/components/ui/Card";
@@ -13,12 +14,13 @@ import { useApp } from "@/hooks/useApp";
 import { aggregateLogsForChart } from "@/lib/calculations";
 import { getDaysInCurrentMonth } from "@/lib/date-utils";
 
-type ChartRange = "7d" | "14d" | "30d" | "mtd";
+type ChartRange = "7d" | "14d" | "30d" | "60d" | "mtd";
 
 const rangeOptions: { value: ChartRange; label: string }[] = [
   { value: "7d", label: "7 Days" },
   { value: "14d", label: "14 Days" },
   { value: "30d", label: "30 Days" },
+  { value: "60d", label: "60 Days" },
   { value: "mtd", label: "This Month" },
 ];
 
@@ -68,6 +70,8 @@ function getDaysForRange(range: ChartRange): number {
       return 14;
     case "30d":
       return 30;
+    case "60d":
+      return 60;
     case "mtd":
       return getDaysInCurrentMonth();
   }
@@ -83,11 +87,23 @@ export function PerformanceChart() {
     state.logs,
     state.types,
     state.settings.dailyGoal,
-    days
+    days,
+    undefined,
+    state.breaks
   );
 
+  // Find visible break ranges within the current chart window
+  const visibleBreaks = state.breaks
+    .map((b) => {
+      const start = chartData.find((d) => d.dateKey >= b.startDate);
+      const end = [...chartData].reverse().find((d) => d.dateKey <= b.endDate);
+      if (!start || !end) return null;
+      return { id: b.id, label: b.label, x1: start.label, x2: end.label };
+    })
+    .filter(Boolean) as { id: string; label?: string; x1: string; x2: string }[];
+
   // Adjust x-axis interval based on range
-  const xAxisInterval = days <= 7 ? 0 : days <= 14 ? 1 : 2;
+  const xAxisInterval = days <= 7 ? 0 : days <= 14 ? 1 : days <= 30 ? 2 : 4;
 
   return (
     <Card noPadding className="pb-2">
@@ -134,6 +150,7 @@ export function PerformanceChart() {
               axisLine={false}
               tickLine={false}
               tick={{ fill: "#1a1b41", fontSize: 10 }}
+              domain={[0, (dataMax: number) => Math.max(dataMax, state.settings.dailyGoal, 10)]}
             />
             <Tooltip content={<CustomTooltip />} cursor={false} />
             <ReferenceLine
@@ -142,6 +159,27 @@ export function PerformanceChart() {
               strokeDasharray="4 4"
               strokeWidth={2}
             />
+            {visibleBreaks.map((vb) => (
+              <ReferenceArea
+                key={vb.id}
+                x1={vb.x1}
+                x2={vb.x2}
+                fill="#e63946"
+                fillOpacity={0.18}
+                stroke="#e63946"
+                strokeOpacity={0.4}
+                strokeDasharray="3 3"
+                ifOverflow="extendDomain"
+                label={{
+                  value: vb.label ?? "Break",
+                  position: "insideTopLeft",
+                  fontSize: 9,
+                  fontWeight: 600,
+                  fill: "#e63946",
+                  offset: 4,
+                }}
+              />
+            ))}
             {activeTypes.map((type) => (
               <Bar
                 key={type.id}
@@ -171,6 +209,12 @@ export function PerformanceChart() {
           />
           <span className="text-navy/70 text-xs">Daily Goal</span>
         </div>
+        {visibleBreaks.length > 0 && (
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-coral-red/20 border border-coral-red/40" />
+            <span className="text-navy/70 text-xs">Break</span>
+          </div>
+        )}
       </div>
     </Card>
   );

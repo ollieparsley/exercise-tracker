@@ -1,5 +1,5 @@
-import type { LogEntry, ExerciseType, ChartDataPoint } from "@/types";
-import { getLastNDays, formatDateLabel, daysBetween } from "./date-utils";
+import type { LogEntry, ExerciseType, ChartDataPoint, Break } from "@/types";
+import { getLastNDays, formatDateLabel, getDateKey } from "./date-utils";
 
 /**
  * Gets the total exercise count for a specific date
@@ -47,20 +47,32 @@ export function getTodayProgress(
 /**
  * Calculates cumulative debt/surplus from start date to today
  * Positive = surplus, Negative = debt
+ * Days within a break period are excluded from the required total
  */
 export function calculateDebt(
   logs: LogEntry[],
   dailyGoal: number,
   startDateKey: string,
-  todayKey: string
+  todayKey: string,
+  breaks: Break[] = []
 ): number {
   // If start date is in the future, no debt yet
   if (startDateKey > todayKey) {
     return 0;
   }
 
-  const days = daysBetween(startDateKey, todayKey);
-  const totalRequired = days * dailyGoal;
+  // Count active days (not within any break period)
+  let activeDays = 0;
+  const cursor = new Date(startDateKey + "T00:00:00");
+  const end = new Date(todayKey + "T00:00:00");
+  while (cursor <= end) {
+    const key = getDateKey(cursor);
+    const inBreak = breaks.some((b) => key >= b.startDate && key <= b.endDate);
+    if (!inBreak) activeDays++;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  const totalRequired = activeDays * dailyGoal;
 
   // Sum all logs from start date to today (inclusive)
   const totalCompleted = logs
@@ -78,18 +90,23 @@ export function aggregateLogsForChart(
   types: ExerciseType[],
   dailyGoal: number,
   days: number = 14,
-  endDate?: Date
+  endDate?: Date,
+  breaks: Break[] = []
 ): ChartDataPoint[] {
   const dateKeys = getLastNDays(days, endDate);
   const activeTypes = types.filter((t) => !t.isArchived);
 
   return dateKeys.map((dateKey) => {
     const breakdown = getBreakdownForDate(logs, dateKey);
+    const isBreak = breaks.some(
+      (b) => dateKey >= b.startDate && dateKey <= b.endDate
+    );
 
     const dataPoint: ChartDataPoint = {
       dateKey,
       label: formatDateLabel(dateKey, "short"),
       goal: dailyGoal,
+      isBreak,
     };
 
     // Add counts for each type

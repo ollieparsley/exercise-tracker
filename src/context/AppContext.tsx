@@ -52,6 +52,26 @@ function appReducer(state: AppState, action: ActionType): AppState {
         logs: state.logs.filter((l) => l.id !== action.payload),
       };
 
+    case "ADD_BREAK":
+      return {
+        ...state,
+        breaks: [...state.breaks, action.payload],
+      };
+
+    case "UPDATE_BREAK":
+      return {
+        ...state,
+        breaks: state.breaks.map((b) =>
+          b.id === action.payload.id ? action.payload : b
+        ),
+      };
+
+    case "DELETE_BREAK":
+      return {
+        ...state,
+        breaks: state.breaks.filter((b) => b.id !== action.payload),
+      };
+
     case "IMPORT_STATE":
       return action.payload;
 
