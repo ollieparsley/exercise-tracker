@@ -197,22 +197,28 @@ export async function parseJSONFile(
   try {
     const text = await file.text();
     const data = JSON.parse(text);
-    const validation = validateAppState(data);
+
+    if (!data || typeof data !== "object") {
+      return { success: false, error: "Invalid data: not an object" };
+    }
+
+    // Normalise legacy backups (missing optional arrays) BEFORE validating so
+    // the strict validateAppState contract holds for older files.
+    const normalised = data as Record<string, unknown>;
+    if (normalised.breaks === undefined) {
+      normalised.breaks = [];
+    }
+    if (normalised.measurements === undefined) {
+      normalised.measurements = [];
+    }
+
+    const validation = validateAppState(normalised);
 
     if (!validation.valid) {
       return {
         success: false,
         error: `Invalid data: ${validation.errors.join(", ")}`,
       };
-    }
-
-    // Normalise optional arrays so reducer and UI can rely on their presence
-    const normalised = data as Record<string, unknown>;
-    if (!Array.isArray(normalised.breaks)) {
-      normalised.breaks = [];
-    }
-    if (!Array.isArray(normalised.measurements)) {
-      normalised.measurements = [];
     }
 
     return { success: true, data: normalised as unknown as AppState };

@@ -341,6 +341,53 @@ describe("validation", () => {
       });
       expect(result.valid).toBe(false);
     });
+
+    it("should reject NaN timestamp", () => {
+      const result = validateMeasurement({
+        ...baseValid,
+        timestamp: NaN,
+        weightKg: 80,
+      });
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some(
+          (e) => e.includes("timestamp") && e.includes("finite")
+        )
+      ).toBe(true);
+    });
+
+    it("should reject Infinity timestamp", () => {
+      const result = validateMeasurement({
+        ...baseValid,
+        timestamp: Infinity,
+        weightKg: 80,
+      });
+      expect(result.valid).toBe(false);
+    });
+
+    // Float-precision edge cases: values like 39.59 produce 39.59*100 ===
+    // 3959.0000000000005 in IEEE-754. The check must tolerate this.
+    const floatEdgeCases = [
+      ["weightKg", 39.59],
+      ["weightKg", 20.29],
+      ["waistCm", 39.59],
+      ["thighCm", 56.29],
+      ["bicepCm", 35.29],
+      ["hipsCm", 96.29],
+      ["chestCm", 102.29],
+      ["neckCm", 38.29],
+      ["wristCm", 17.29],
+    ] as const;
+
+    for (const [field, value] of floatEdgeCases) {
+      it(`should accept ${field} = ${value} despite IEEE-754 multiplication drift`, () => {
+        const result = validateMeasurement({
+          ...baseValid,
+          [field]: value,
+        });
+        expect(result.valid).toBe(true);
+      });
+    }
   });
 
   describe("validateAppState", () => {
@@ -366,6 +413,13 @@ describe("validation", () => {
           count: 10,
         },
       ],
+      measurements: [],
+    };
+
+    const validStateNoMeasurements = {
+      settings: validState.settings,
+      types: validState.types,
+      logs: validState.logs,
     };
 
     it("should validate valid app state", () => {
@@ -416,9 +470,10 @@ describe("validation", () => {
       expect(result.errors.some((e) => e.includes("logs[0]:"))).toBe(true);
     });
 
-    it("should accept state without measurements (back-compat)", () => {
-      const result = validateAppState(validState);
-      expect(result.valid).toBe(true);
+    it("should reject state without measurements (strict; callers normalise)", () => {
+      const result = validateAppState(validStateNoMeasurements);
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain("measurements must be an array");
     });
 
     it("should accept state with valid measurements", () => {
@@ -471,6 +526,7 @@ describe("validation", () => {
           settings: { dailyGoal: 50, startDate: "2024-01-15" },
           types: [],
           logs: [],
+          measurements: [],
         })
       ).toBe(true);
       expect(isAppState({ invalid: true })).toBe(false);

@@ -30,9 +30,9 @@ test.describe("Export and Import", () => {
     await page.getByRole("button", { name: "Add 10" }).click();
 
     // Log a body measurement (with 2-decimal value)
-    await page.getByLabel("Weight in kg").fill("82.55");
-    await page.getByLabel("Waist in cm").fill("88");
-    await page.getByLabel("Wrist in cm").fill("17.25");
+    await page.getByLabel("Weight (kg)").fill("82.55");
+    await page.getByLabel("Waist (cm)").fill("88");
+    await page.getByLabel("Wrist (cm)").fill("17.25");
     await page.getByRole("button", { name: "Save Measurements" }).click();
     await expect(
       page.getByText(/82\.55 kg.*88\.00 cm waist.*17\.25 cm wrist/)
@@ -110,9 +110,13 @@ test.describe("Export and Import", () => {
     // Log a measurement
     await page.goto("./log");
     await page.waitForLoadState("networkidle");
-    await page.getByLabel("Weight in kg").fill("82.55");
-    await page.getByLabel("Bicep in cm").fill("35.25");
+    await page.getByLabel("Weight (kg)").fill("82.55");
+    await page.getByLabel("Bicep (cm)").fill("35.25");
     await page.getByRole("button", { name: "Save Measurements" }).click();
+    // Wait for the measurement to render (and therefore be persisted) before
+    // navigating away — guards against a race between the dispatch effect and
+    // the SPA reload triggered by page.goto.
+    await expect(page.getByText(/82\.55 kg.*35\.25 cm bicep/)).toBeVisible();
 
     // Trigger Excel download from the settings page
     await page.goto("./settings");

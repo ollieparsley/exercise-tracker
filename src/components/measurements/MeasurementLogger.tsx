@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useApp } from "@/hooks/useApp";
 import { getTodayKey } from "@/lib/date-utils";
-import { validateMeasurement } from "@/lib/validation";
+import { MEASUREMENT_BOUNDS, validateMeasurement } from "@/lib/validation";
 import type { Measurement } from "@/types";
 
 type FieldKey =
@@ -34,6 +34,14 @@ const FIELDS: FieldDef[] = [
   { key: "neckCm", label: "Neck", unit: "cm" },
   { key: "wristCm", label: "Wrist", unit: "cm" },
 ];
+
+const FIELD_LABELS: Record<FieldKey, string> = FIELDS.reduce(
+  (acc, { key, label }) => {
+    acc[key] = label;
+    return acc;
+  },
+  {} as Record<FieldKey, string>
+);
 
 const EMPTY_VALUES: Record<FieldKey, string> = {
   weightKg: "",
@@ -69,15 +77,15 @@ export function MeasurementLogger({ dateKey }: MeasurementLoggerProps) {
 
     const numericValues: Partial<Record<FieldKey, number>> = {};
     let anyEntered = false;
-    for (const { key } of FIELDS) {
+    for (const { key, label } of FIELDS) {
       const raw = values[key].trim();
       if (raw === "") continue;
       const parsed = parseFloat(raw);
       if (Number.isNaN(parsed)) {
-        setError(`${key} is not a valid number`);
+        setError(`${label} is not a valid number`);
         return;
       }
-      numericValues[key] = Math.round(parsed * 100) / 100;
+      numericValues[key] = parsed;
       anyEntered = true;
     }
 
@@ -95,7 +103,14 @@ export function MeasurementLogger({ dateKey }: MeasurementLoggerProps) {
 
     const validation = validateMeasurement(measurement);
     if (!validation.valid) {
-      setError(validation.errors.join("; "));
+      // Replace internal field keys with human labels in the visible error.
+      const friendly = validation.errors.map((msg) =>
+        (Object.keys(FIELD_LABELS) as FieldKey[]).reduce(
+          (acc, key) => acc.replaceAll(key, FIELD_LABELS[key]),
+          msg
+        )
+      );
+      setError(friendly.join("; "));
       return;
     }
 
@@ -125,20 +140,23 @@ export function MeasurementLogger({ dateKey }: MeasurementLoggerProps) {
       <Card>
         <CardHeader>Body Measurements</CardHeader>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          {FIELDS.map(({ key, label, unit }) => (
-            <Input
-              key={key}
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
-              label={`${label} (${unit})`}
-              value={values[key]}
-              onChange={(e) => handleChange(key, e.target.value)}
-              aria-label={`${label} in ${unit}`}
-              placeholder="0.00"
-            />
-          ))}
+          {FIELDS.map(({ key, label, unit }) => {
+            const bounds = MEASUREMENT_BOUNDS[key];
+            return (
+              <Input
+                key={key}
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min={bounds.min}
+                max={bounds.max}
+                label={`${label} (${unit})`}
+                value={values[key]}
+                onChange={(e) => handleChange(key, e.target.value)}
+                placeholder="0.00"
+              />
+            );
+          })}
         </div>
         {error && (
           <p className="text-coral-red text-sm mt-3" role="alert">

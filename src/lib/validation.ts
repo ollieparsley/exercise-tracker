@@ -20,7 +20,7 @@ const MEASUREMENT_FIELDS = [
 
 type MeasurementField = (typeof MEASUREMENT_FIELDS)[number];
 
-const MEASUREMENT_BOUNDS: Record<
+export const MEASUREMENT_BOUNDS: Record<
   MeasurementField,
   { min: number; max: number }
 > = {
@@ -35,7 +35,8 @@ const MEASUREMENT_BOUNDS: Record<
 };
 
 function hasAtMostTwoDecimals(value: number): boolean {
-  return Math.round(value * 100) === value * 100;
+  const scaled = value * 100;
+  return Math.abs(scaled - Math.round(scaled)) < 1e-9;
 }
 
 export interface ValidationResult {
@@ -188,8 +189,12 @@ export function validateMeasurement(data: unknown): ValidationResult {
     errors.push("id must be a non-empty string");
   }
 
-  if (typeof m.timestamp !== "number" || m.timestamp < 0) {
-    errors.push("timestamp must be a non-negative number");
+  if (
+    typeof m.timestamp !== "number" ||
+    !Number.isFinite(m.timestamp) ||
+    m.timestamp < 0
+  ) {
+    errors.push("timestamp must be a non-negative finite number");
   }
 
   if (typeof m.dateKey !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(m.dateKey)) {
@@ -286,20 +291,19 @@ export function validateAppState(data: unknown): ValidationResult {
     }
   }
 
-  // Validate measurements array (optional for backwards compatibility)
-  if (state.measurements !== undefined) {
-    if (!Array.isArray(state.measurements)) {
-      errors.push("measurements must be an array");
-    } else {
-      state.measurements.forEach((m, index) => {
-        const mValidation = validateMeasurement(m);
-        if (!mValidation.valid) {
-          errors.push(
-            ...mValidation.errors.map((e) => `measurements[${index}]: ${e}`)
-          );
-        }
-      });
-    }
+  // Validate measurements array (required; callers must normalise legacy data
+  // before validating — see loadState / parseJSONFile).
+  if (!Array.isArray(state.measurements)) {
+    errors.push("measurements must be an array");
+  } else {
+    state.measurements.forEach((m, index) => {
+      const mValidation = validateMeasurement(m);
+      if (!mValidation.valid) {
+        errors.push(
+          ...mValidation.errors.map((e) => `measurements[${index}]: ${e}`)
+        );
+      }
+    });
   }
 
   return { valid: errors.length === 0, errors };
