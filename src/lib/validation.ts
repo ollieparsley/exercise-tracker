@@ -4,7 +4,40 @@ import type {
   LogEntry,
   Settings,
   Break,
+  Measurement,
 } from "@/types";
+
+const MEASUREMENT_FIELDS = [
+  "weightKg",
+  "waistCm",
+  "thighCm",
+  "bicepCm",
+  "hipsCm",
+  "chestCm",
+  "neckCm",
+  "wristCm",
+] as const;
+
+type MeasurementField = (typeof MEASUREMENT_FIELDS)[number];
+
+export const MEASUREMENT_BOUNDS: Record<
+  MeasurementField,
+  { min: number; max: number }
+> = {
+  weightKg: { min: 20, max: 500 },
+  waistCm: { min: 30, max: 250 },
+  thighCm: { min: 20, max: 150 },
+  bicepCm: { min: 15, max: 80 },
+  hipsCm: { min: 40, max: 200 },
+  chestCm: { min: 40, max: 200 },
+  neckCm: { min: 20, max: 80 },
+  wristCm: { min: 10, max: 30 },
+};
+
+function hasAtMostTwoDecimals(value: number): boolean {
+  const scaled = value * 100;
+  return Math.abs(scaled - Math.round(scaled)) < 1e-9;
+}
 
 export interface ValidationResult {
   valid: boolean;
@@ -141,6 +174,64 @@ export function validateBreak(data: unknown): ValidationResult {
 }
 
 /**
+ * Validates a Measurement object
+ */
+export function validateMeasurement(data: unknown): ValidationResult {
+  const errors: string[] = [];
+
+  if (!data || typeof data !== "object") {
+    return { valid: false, errors: ["Measurement must be an object"] };
+  }
+
+  const m = data as Record<string, unknown>;
+
+  if (typeof m.id !== "string" || m.id.length === 0) {
+    errors.push("id must be a non-empty string");
+  }
+
+  if (
+    typeof m.timestamp !== "number" ||
+    !Number.isFinite(m.timestamp) ||
+    m.timestamp < 0
+  ) {
+    errors.push("timestamp must be a non-negative finite number");
+  }
+
+  if (typeof m.dateKey !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(m.dateKey)) {
+    errors.push("dateKey must be a valid date string (YYYY-MM-DD)");
+  }
+
+  let presentCount = 0;
+  for (const field of MEASUREMENT_FIELDS) {
+    const value = m[field];
+    if (value === undefined) continue;
+    presentCount++;
+
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      errors.push(`${field} must be a finite number if provided`);
+      continue;
+    }
+
+    const { min, max } = MEASUREMENT_BOUNDS[field];
+    if (value < min || value > max) {
+      errors.push(`${field} must be between ${min} and ${max}`);
+    }
+
+    if (!hasAtMostTwoDecimals(value)) {
+      errors.push(`${field} must have at most 2 decimal places`);
+    }
+  }
+
+  if (presentCount === 0) {
+    errors.push(
+      `Measurement requires at least one of ${MEASUREMENT_FIELDS.join(", ")}`
+    );
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+/**
  * Validates the entire AppState object
  */
 export function validateAppState(data: unknown): ValidationResult {
@@ -200,6 +291,21 @@ export function validateAppState(data: unknown): ValidationResult {
     }
   }
 
+  // Validate measurements array (required; callers must normalise legacy data
+  // before validating — see loadState / parseJSONFile).
+  if (!Array.isArray(state.measurements)) {
+    errors.push("measurements must be an array");
+  } else {
+    state.measurements.forEach((m, index) => {
+      const mValidation = validateMeasurement(m);
+      if (!mValidation.valid) {
+        errors.push(
+          ...mValidation.errors.map((e) => `measurements[${index}]: ${e}`)
+        );
+      }
+    });
+  }
+
   return { valid: errors.length === 0, errors };
 }
 
@@ -236,4 +342,11 @@ export function isLogEntry(data: unknown): data is LogEntry {
  */
 export function isSettings(data: unknown): data is Settings {
   return validateSettings(data).valid;
+}
+
+/**
+ * Type guard for Measurement
+ */
+export function isMeasurement(data: unknown): data is Measurement {
+  return validateMeasurement(data).valid;
 }

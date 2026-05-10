@@ -16,7 +16,7 @@ export function BackupRestore() {
   };
 
   const handleExportExcel = () => {
-    downloadExcel(state.logs, state.types);
+    downloadExcel(state.logs, state.types, state.measurements);
   };
 
   const handleRestoreClick = () => {

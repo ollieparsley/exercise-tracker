@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { TypeSelector } from "./TypeSelector";
 import { QuickActions } from "./QuickActions";
 import { CountInput } from "./CountInput";
+import { MeasurementLogger } from "@/components/measurements/MeasurementLogger";
 import { useApp } from "@/hooks/useApp";
 import { getTodayKey } from "@/lib/date-utils";
 import { getLogsForDate } from "@/lib/calculations";
@@ -68,6 +69,8 @@ export function SessionLogger({ dateKey }: SessionLoggerProps) {
         <CardHeader>Custom Amount</CardHeader>
         <CountInput onSubmit={handleLog} disabled={!selectedTypeId} />
       </Card>
+
+      <MeasurementLogger dateKey={targetDate} />
 
       {logsForDate.length > 0 && (
         <Card>

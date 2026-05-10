@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { generateCSV, parseJSONFile } from "@/lib/export";
-import type { LogEntry, ExerciseType, AppState } from "@/types";
+import * as XLSX from "xlsx";
+import { buildExcelWorkbook, generateCSV, parseJSONFile } from "@/lib/export";
+import type { LogEntry, ExerciseType, AppState, Measurement } from "@/types";
 
 describe("export", () => {
   describe("generateCSV", () => {
@@ -83,6 +84,131 @@ describe("export", () => {
     });
   });
 
+  describe("buildExcelWorkbook", () => {
+    const types: ExerciseType[] = [
+      { id: "type-1", name: "Standard", color: "#87F5FB", isArchived: false },
+    ];
+    const logs: LogEntry[] = [
+      {
+        id: "log-1",
+        timestamp: new Date("2024-01-15T10:00:00Z").getTime(),
+        dateKey: "2024-01-15",
+        typeId: "type-1",
+        count: 30,
+      },
+    ];
+
+    const expectedHeaders = [
+      "Date",
+      "Time",
+      "Weight (kg)",
+      "Waist (cm)",
+      "Thigh (cm)",
+      "Bicep (cm)",
+      "Hips (cm)",
+      "Chest (cm)",
+      "Neck (cm)",
+      "Wrist (cm)",
+      "Timestamp",
+    ];
+
+    it("creates a workbook with both expected sheets", () => {
+      const workbook = buildExcelWorkbook(logs, types, []);
+      expect(workbook.SheetNames).toEqual([
+        "Exercise Logs",
+        "Body Measurements",
+      ]);
+    });
+
+    it("Body Measurements sheet header row contains units", () => {
+      const workbook = buildExcelWorkbook(logs, types, []);
+      const sheet = workbook.Sheets["Body Measurements"];
+      const rows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 });
+      expect(rows[0]).toEqual(expectedHeaders);
+    });
+
+    it("appends Body Measurements sheet even when measurements are empty", () => {
+      const workbook = buildExcelWorkbook(logs, types, []);
+      expect(workbook.SheetNames).toContain("Body Measurements");
+      const sheet = workbook.Sheets["Body Measurements"];
+      const rows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 });
+      expect(rows.length).toBe(1); // header row only
+    });
+
+    it("leaves blank cells for missing measurement fields", () => {
+      const measurements: Measurement[] = [
+        {
+          id: "m-1",
+          timestamp: new Date("2024-01-15T07:00:00Z").getTime(),
+          dateKey: "2024-01-15",
+          weightKg: 82.55,
+        },
+      ];
+      const workbook = buildExcelWorkbook(logs, types, measurements);
+      const sheet = workbook.Sheets["Body Measurements"];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
+      expect(rows[0]["Weight (kg)"]).toBe(82.55);
+      expect(rows[0]["Waist (cm)"]).toBeUndefined();
+      expect(rows[0]["Thigh (cm)"]).toBeUndefined();
+      expect(rows[0]["Bicep (cm)"]).toBeUndefined();
+      expect(rows[0]["Hips (cm)"]).toBeUndefined();
+      expect(rows[0]["Chest (cm)"]).toBeUndefined();
+      expect(rows[0]["Neck (cm)"]).toBeUndefined();
+      expect(rows[0]["Wrist (cm)"]).toBeUndefined();
+    });
+
+    it("round-trips 2-decimal numeric values", () => {
+      const measurements: Measurement[] = [
+        {
+          id: "m-1",
+          timestamp: new Date("2024-01-15T07:00:00Z").getTime(),
+          dateKey: "2024-01-15",
+          weightKg: 82.55,
+          waistCm: 88.0,
+          thighCm: 56.25,
+          bicepCm: 35.0,
+          hipsCm: 96.5,
+          chestCm: 102.0,
+          neckCm: 38.5,
+          wristCm: 17.25,
+        },
+      ];
+      const workbook = buildExcelWorkbook(logs, types, measurements);
+      const sheet = workbook.Sheets["Body Measurements"];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
+      expect(rows[0]["Weight (kg)"]).toBe(82.55);
+      expect(rows[0]["Waist (cm)"]).toBe(88.0);
+      expect(rows[0]["Thigh (cm)"]).toBe(56.25);
+      expect(rows[0]["Bicep (cm)"]).toBe(35.0);
+      expect(rows[0]["Hips (cm)"]).toBe(96.5);
+      expect(rows[0]["Chest (cm)"]).toBe(102.0);
+      expect(rows[0]["Neck (cm)"]).toBe(38.5);
+      expect(rows[0]["Wrist (cm)"]).toBe(17.25);
+    });
+
+    it("sorts measurements by timestamp ascending", () => {
+      const measurements: Measurement[] = [
+        {
+          id: "m-late",
+          timestamp: new Date("2024-01-15T18:00:00Z").getTime(),
+          dateKey: "2024-01-15",
+          weightKg: 82,
+        },
+        {
+          id: "m-early",
+          timestamp: new Date("2024-01-15T07:00:00Z").getTime(),
+          dateKey: "2024-01-15",
+          weightKg: 81,
+        },
+      ];
+      const workbook = buildExcelWorkbook(logs, types, measurements);
+      const sheet = workbook.Sheets["Body Measurements"];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
+      expect(rows[0]["Weight (kg)"]).toBe(81);
+      expect(rows[1]["Weight (kg)"]).toBe(82);
+    });
+  });
+
   describe("parseJSONFile", () => {
     beforeEach(() => {
       vi.clearAllMocks();
@@ -160,6 +286,57 @@ describe("export", () => {
       const result = await parseJSONFile(file);
 
       expect(result.success).toBe(false);
+    });
+
+    it("should round-trip measurements", async () => {
+      const stateWithMeasurements: AppState = {
+        settings: { dailyGoal: 50, startDate: "2024-01-15" },
+        types: [],
+        logs: [],
+        breaks: [],
+        measurements: [
+          {
+            id: "m-1",
+            timestamp: 1700000000000,
+            dateKey: "2024-01-15",
+            weightKg: 82.55,
+            waistCm: 88.0,
+            thighCm: 56.25,
+            bicepCm: 35.0,
+            hipsCm: 96.5,
+            chestCm: 102.0,
+            neckCm: 38.5,
+            wristCm: 17.25,
+          },
+        ],
+      };
+
+      const file = createMockFile(JSON.stringify(stateWithMeasurements));
+      const result = await parseJSONFile(file);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.measurements).toHaveLength(1);
+        expect(result.data.measurements[0].weightKg).toBe(82.55);
+        expect(result.data.measurements[0].wristCm).toBe(17.25);
+      }
+    });
+
+    it("should normalise missing measurements array to empty", async () => {
+      const oldState = {
+        settings: { dailyGoal: 50, startDate: "2024-01-15" },
+        types: [],
+        logs: [],
+        // no measurements field
+      };
+
+      const file = createMockFile(JSON.stringify(oldState));
+      const result = await parseJSONFile(file);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.measurements).toEqual([]);
+      }
     });
   });
 });
