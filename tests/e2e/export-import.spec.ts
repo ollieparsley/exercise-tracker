@@ -128,7 +128,10 @@ test.describe("Export and Import", () => {
     const downloadPath = path.join("/tmp", download.suggestedFilename());
     await download.saveAs(downloadPath);
 
-    const workbook = XLSX.readFile(downloadPath);
+    // XLSX.readFile is not exposed by the ESM build — read via fs + XLSX.read.
+    const workbook = XLSX.read(fs.readFileSync(downloadPath), {
+      type: "buffer",
+    });
     expect(workbook.SheetNames).toContain("Exercise Logs");
     expect(workbook.SheetNames).toContain("Body Measurements");
 
