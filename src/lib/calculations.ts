@@ -1,5 +1,45 @@
-import type { LogEntry, ExerciseType, ChartDataPoint, Break } from "@/types";
+import type {
+  LogEntry,
+  ExerciseType,
+  ChartDataPoint,
+  Break,
+  Measurement,
+} from "@/types";
 import { getLastNDays, formatDateLabel, getDateKey } from "./date-utils";
+
+export type MeasurementField =
+  | "weightKg"
+  | "waistCm"
+  | "thighCm"
+  | "bicepCm"
+  | "hipsCm"
+  | "chestCm"
+  | "neckCm"
+  | "wristCm";
+
+export const MEASUREMENT_FIELDS: readonly MeasurementField[] = [
+  "weightKg",
+  "waistCm",
+  "thighCm",
+  "bicepCm",
+  "hipsCm",
+  "chestCm",
+  "neckCm",
+  "wristCm",
+] as const;
+
+export interface MeasurementChartDataPoint {
+  dateKey: string;
+  label: string;
+  weightKg?: number;
+  waistCm?: number;
+  thighCm?: number;
+  bicepCm?: number;
+  hipsCm?: number;
+  chestCm?: number;
+  neckCm?: number;
+  wristCm?: number;
+}
 
 /**
  * Gets the total exercise count for a specific date
@@ -116,6 +156,57 @@ export function aggregateLogsForChart(
 
     return dataPoint;
   });
+}
+
+/**
+ * Aggregates body measurements into chart-ready points for the last N days.
+ * When multiple measurements share a dateKey, the one with the latest
+ * timestamp wins. Days with no measurement get a point with every metric
+ * left undefined so the line chart can connectNulls across gaps.
+ */
+export function aggregateMeasurementsForChart(
+  measurements: Measurement[],
+  days: number = 14,
+  endDate?: Date
+): MeasurementChartDataPoint[] {
+  const dateKeys = getLastNDays(days, endDate);
+
+  const latestByDate = new Map<string, Measurement>();
+  for (const m of measurements) {
+    const existing = latestByDate.get(m.dateKey);
+    if (!existing || m.timestamp > existing.timestamp) {
+      latestByDate.set(m.dateKey, m);
+    }
+  }
+
+  return dateKeys.map((dateKey) => {
+    const m = latestByDate.get(dateKey);
+    return {
+      dateKey,
+      label: formatDateLabel(dateKey, "short"),
+      weightKg: m?.weightKg,
+      waistCm: m?.waistCm,
+      thighCm: m?.thighCm,
+      bicepCm: m?.bicepCm,
+      hipsCm: m?.hipsCm,
+      chestCm: m?.chestCm,
+      neckCm: m?.neckCm,
+      wristCm: m?.wristCm,
+    };
+  });
+}
+
+/**
+ * Returns the subset of measurement fields that have at least one numeric
+ * value across the supplied chart points. Used to hide lines/legend entries
+ * for metrics the user has never logged in the current window.
+ */
+export function getPopulatedMeasurementFields(
+  points: MeasurementChartDataPoint[]
+): MeasurementField[] {
+  return MEASUREMENT_FIELDS.filter((field) =>
+    points.some((p) => typeof p[field] === "number")
+  );
 }
 
 /**
