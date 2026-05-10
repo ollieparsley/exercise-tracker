@@ -16,7 +16,7 @@ const navItems: NavItem[] = [
 
 export function Navigation() {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-mint border-t border-navy/20 safe-area-pb">
+    <nav className="fixed bottom-0 left-0 right-0 bg-mint border-t border-navy/20 safe-area-pb">
       <div className="max-w-lg mx-auto flex">
         {navItems.map(({ to, label, iconClass }) => (
           <NavLink

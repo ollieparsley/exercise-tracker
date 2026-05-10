@@ -43,19 +43,12 @@ beforeEach(() => {
 });
 
 describe("MeasurementChart", () => {
-  it("renders the empty state when no measurements have ever been logged", () => {
-    renderChart();
-    expect(screen.getByText(/No measurements yet/i)).toBeInTheDocument();
-    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  it("renders nothing when no measurements have ever been logged", () => {
+    const { container } = renderChart();
+    expect(container).toBeEmptyDOMElement();
   });
 
-  it("shows the time-range buttons even in the empty state", () => {
-    renderChart();
-    expect(screen.getByRole("radio", { name: "7 Days" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "30 Days" })).toBeInTheDocument();
-  });
-
-  it("shows a 'no data in this period' hint when the user has measurements outside the range", () => {
+  it("shows the 'no data in this period' hint when measurements exist but fall outside the range", () => {
     // 31 days ago — outside the default 30-day window
     const old = Date.now() - 31 * 24 * 60 * 60 * 1000;
     const oldDate = new Date(old).toISOString().split("T")[0];
@@ -71,6 +64,9 @@ describe("MeasurementChart", () => {
     expect(
       screen.getByText(/No measurements recorded in this period/i)
     ).toBeInTheDocument();
+    // Time-range buttons should be present so the user can widen the window.
+    expect(screen.getByRole("radio", { name: "7 Days" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "30 Days" })).toBeInTheDocument();
   });
 
   it("renders the chart and a legend entry per populated metric when data is present", () => {
@@ -85,8 +81,6 @@ describe("MeasurementChart", () => {
       },
     ]);
     renderChart();
-    // Empty-state copy must NOT appear when there's data in range.
-    expect(screen.queryByText(/No measurements yet/i)).not.toBeInTheDocument();
     expect(
       screen.queryByText(/No measurements recorded in this period/i)
     ).not.toBeInTheDocument();
@@ -100,6 +94,16 @@ describe("MeasurementChart", () => {
   });
 
   it("clicking a time-range button switches the active selection", () => {
+    // Time-range buttons only render once at least one measurement exists.
+    const today = new Date().toISOString().split("T")[0];
+    seedMeasurements([
+      {
+        id: "m-1",
+        timestamp: Date.now(),
+        dateKey: today,
+        weightKg: 82.5,
+      },
+    ]);
     renderChart();
     const sevenDays = screen.getByRole("radio", { name: "7 Days" });
     const thirtyDays = screen.getByRole("radio", { name: "30 Days" });

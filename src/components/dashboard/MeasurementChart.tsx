@@ -86,11 +86,18 @@ export function MeasurementChart() {
   const { state } = useApp();
   const [range, setRange] = useState<ChartRange>("30d");
 
+  // No card at all until the user has saved at least one measurement.
+  // The MeasurementLogger on /log surfaces the "where to add data" hint;
+  // rendering an empty placeholder here was bloating the mobile dashboard
+  // and intercepting bottom-nav clicks in Playwright.
+  if (state.measurements.length === 0) {
+    return null;
+  }
+
   const days = getDaysForRange(range);
   const chartData = aggregateMeasurementsForChart(state.measurements, days);
   const populated = getPopulatedMeasurementFields(chartData);
   const hasAnyData = populated.length > 0;
-  const hasEverLogged = state.measurements.length > 0;
 
   const usesKg = populated.some((key) => FIELD_DEFS_BY_KEY[key].axis === "kg");
   const usesCm = populated.some((key) => FIELD_DEFS_BY_KEY[key].axis === "cm");
@@ -106,9 +113,8 @@ export function MeasurementChart() {
 
       {!hasAnyData ? (
         <div className="px-4 py-8 text-center text-navy/70 text-sm">
-          {hasEverLogged
-            ? "No measurements recorded in this period. Try a longer time range, or log a new measurement on the Log page."
-            : "No measurements yet. Save your first weight, waist, or other measurement on the Log page to see trends here."}
+          No measurements recorded in this period. Try a longer time range, or
+          log a new measurement on the Log page.
         </div>
       ) : (
         <div
