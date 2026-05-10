@@ -3,10 +3,12 @@ import {
   validateSettings,
   validateExerciseType,
   validateLogEntry,
+  validateMeasurement,
   validateAppState,
   isAppState,
   isExerciseType,
   isLogEntry,
+  isMeasurement,
   isSettings,
 } from "@/lib/validation";
 
@@ -186,6 +188,161 @@ describe("validation", () => {
     });
   });
 
+  describe("validateMeasurement", () => {
+    const baseValid = {
+      id: "m-1",
+      timestamp: 1700000000000,
+      dateKey: "2024-01-15",
+    };
+
+    it("should validate measurement with all eight values", () => {
+      const result = validateMeasurement({
+        ...baseValid,
+        weightKg: 82.55,
+        waistCm: 88.0,
+        thighCm: 56.25,
+        bicepCm: 35.0,
+        hipsCm: 96.5,
+        chestCm: 102.0,
+        neckCm: 38.5,
+        wristCm: 17.25,
+      });
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it("should validate measurement with only one value", () => {
+      const result = validateMeasurement({
+        ...baseValid,
+        weightKg: 82.5,
+      });
+      expect(result.valid).toBe(true);
+    });
+
+    it("should reject when all eight measurement fields are undefined", () => {
+      const result = validateMeasurement(baseValid);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes("at least one of"))).toBe(
+        true
+      );
+    });
+
+    it("should reject empty id", () => {
+      const result = validateMeasurement({
+        ...baseValid,
+        id: "",
+        weightKg: 80,
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain("id must be a non-empty string");
+    });
+
+    it("should reject negative timestamp", () => {
+      const result = validateMeasurement({
+        ...baseValid,
+        timestamp: -1,
+        weightKg: 80,
+      });
+      expect(result.valid).toBe(false);
+    });
+
+    it("should reject malformed dateKey", () => {
+      const result = validateMeasurement({
+        ...baseValid,
+        dateKey: "01/15/2024",
+        weightKg: 80,
+      });
+      expect(result.valid).toBe(false);
+    });
+
+    const boundsCases: ReadonlyArray<
+      readonly [string, number, number, number]
+    > = [
+      ["weightKg", 20, 500, 80],
+      ["waistCm", 30, 250, 88],
+      ["thighCm", 20, 150, 56],
+      ["bicepCm", 15, 80, 35],
+      ["hipsCm", 40, 200, 96],
+      ["chestCm", 40, 200, 102],
+      ["neckCm", 20, 80, 38],
+      ["wristCm", 10, 30, 17],
+    ];
+
+    for (const [field, min, max] of boundsCases) {
+      it(`should reject ${field} below ${min}`, () => {
+        const result = validateMeasurement({
+          ...baseValid,
+          [field]: min - 1,
+        });
+        expect(result.valid).toBe(false);
+        expect(
+          result.errors.some((e) => e.includes(field) && e.includes("between"))
+        ).toBe(true);
+      });
+
+      it(`should reject ${field} above ${max}`, () => {
+        const result = validateMeasurement({
+          ...baseValid,
+          [field]: max + 1,
+        });
+        expect(result.valid).toBe(false);
+        expect(
+          result.errors.some((e) => e.includes(field) && e.includes("between"))
+        ).toBe(true);
+      });
+    }
+
+    it("should reject string measurement value", () => {
+      const result = validateMeasurement({
+        ...baseValid,
+        weightKg: "82",
+      });
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some(
+          (e) => e.includes("weightKg") && e.includes("finite number")
+        )
+      ).toBe(true);
+    });
+
+    it("should reject more than 2 decimal places", () => {
+      const result = validateMeasurement({
+        ...baseValid,
+        weightKg: 82.555,
+      });
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some(
+          (e) => e.includes("weightKg") && e.includes("decimal")
+        )
+      ).toBe(true);
+    });
+
+    it("should accept exactly 2 decimal places at lower bound", () => {
+      const result = validateMeasurement({
+        ...baseValid,
+        weightKg: 20.0,
+      });
+      expect(result.valid).toBe(true);
+    });
+
+    it("should accept 2 decimal places near upper bound", () => {
+      const result = validateMeasurement({
+        ...baseValid,
+        weightKg: 499.99,
+      });
+      expect(result.valid).toBe(true);
+    });
+
+    it("should reject NaN measurement value", () => {
+      const result = validateMeasurement({
+        ...baseValid,
+        weightKg: NaN,
+      });
+      expect(result.valid).toBe(false);
+    });
+  });
+
   describe("validateAppState", () => {
     const validState = {
       settings: {
@@ -258,6 +415,53 @@ describe("validation", () => {
       expect(result.valid).toBe(false);
       expect(result.errors.some((e) => e.includes("logs[0]:"))).toBe(true);
     });
+
+    it("should accept state without measurements (back-compat)", () => {
+      const result = validateAppState(validState);
+      expect(result.valid).toBe(true);
+    });
+
+    it("should accept state with valid measurements", () => {
+      const result = validateAppState({
+        ...validState,
+        measurements: [
+          {
+            id: "m-1",
+            timestamp: 1700000000000,
+            dateKey: "2024-01-15",
+            weightKg: 82.5,
+          },
+        ],
+      });
+      expect(result.valid).toBe(true);
+    });
+
+    it("should reject state with invalid measurement", () => {
+      const result = validateAppState({
+        ...validState,
+        measurements: [
+          {
+            id: "m-1",
+            timestamp: 1700000000000,
+            dateKey: "2024-01-15",
+            weightKg: 5, // below min
+          },
+        ],
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes("measurements[0]:"))).toBe(
+        true
+      );
+    });
+
+    it("should reject non-array measurements", () => {
+      const result = validateAppState({
+        ...validState,
+        measurements: "not an array",
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain("measurements must be an array");
+    });
   });
 
   describe("type guards", () => {
@@ -300,6 +504,18 @@ describe("validation", () => {
     it("isSettings should return correct boolean", () => {
       expect(isSettings({ dailyGoal: 50, startDate: "2024-01-15" })).toBe(true);
       expect(isSettings({ dailyGoal: -1 })).toBe(false);
+    });
+
+    it("isMeasurement should return correct boolean", () => {
+      expect(
+        isMeasurement({
+          id: "m-1",
+          timestamp: 1700000000000,
+          dateKey: "2024-01-15",
+          weightKg: 82.5,
+        })
+      ).toBe(true);
+      expect(isMeasurement({ id: "" })).toBe(false);
     });
   });
 });

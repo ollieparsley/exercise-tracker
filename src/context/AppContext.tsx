@@ -72,6 +72,26 @@ function appReducer(state: AppState, action: ActionType): AppState {
         breaks: state.breaks.filter((b) => b.id !== action.payload),
       };
 
+    case "ADD_MEASUREMENT":
+      return {
+        ...state,
+        measurements: [...state.measurements, action.payload],
+      };
+
+    case "UPDATE_MEASUREMENT":
+      return {
+        ...state,
+        measurements: state.measurements.map((m) =>
+          m.id === action.payload.id ? action.payload : m
+        ),
+      };
+
+    case "DELETE_MEASUREMENT":
+      return {
+        ...state,
+        measurements: state.measurements.filter((m) => m.id !== action.payload),
+      };
+
     case "IMPORT_STATE":
       return action.payload;
 

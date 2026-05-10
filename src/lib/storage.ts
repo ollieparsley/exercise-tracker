@@ -25,6 +25,7 @@ export const DEFAULT_STATE: AppState = {
   ],
   logs: [],
   breaks: [],
+  measurements: [],
 };
 
 /**
@@ -45,6 +46,11 @@ export function loadState(): AppState {
     // Migrate: add breaks if missing from older stored state
     if (!Array.isArray(parsed.breaks)) {
       parsed.breaks = [];
+    }
+
+    // Migrate: add measurements if missing from older stored state
+    if (!Array.isArray(parsed.measurements)) {
+      parsed.measurements = [];
     }
 
     const validation = validateAppState(parsed);

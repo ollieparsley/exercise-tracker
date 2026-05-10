@@ -1,4 +1,4 @@
-import type { AppState, LogEntry, ExerciseType } from "@/types";
+import type { AppState, LogEntry, ExerciseType, Measurement } from "@/types";
 import { validateAppState } from "./validation";
 import * as XLSX from "xlsx";
 
@@ -63,14 +63,35 @@ function formatTime(timestamp: number): string {
   });
 }
 
-/**
- * Downloads logs as Excel file
- */
-export function downloadExcel(logs: LogEntry[], types: ExerciseType[]): void {
-  const typeMap = new Map(types.map((t) => [t.id, t.name]));
+const MEASUREMENT_HEADERS = [
+  "Date",
+  "Time",
+  "Weight (kg)",
+  "Waist (cm)",
+  "Thigh (cm)",
+  "Bicep (cm)",
+  "Hips (cm)",
+  "Chest (cm)",
+  "Neck (cm)",
+  "Wrist (cm)",
+  "Timestamp",
+] as const;
 
-  // Prepare data for Excel
-  const data = logs.map((log) => ({
+/**
+ * Builds an Excel workbook with two sheets: Exercise Logs and Body Measurements.
+ * Extracted from downloadExcel so unit tests can assert structure without
+ * triggering a file download.
+ */
+export function buildExcelWorkbook(
+  logs: LogEntry[],
+  types: ExerciseType[],
+  measurements: Measurement[]
+): XLSX.WorkBook {
+  const typeMap = new Map(types.map((t) => [t.id, t.name]));
+  const workbook = XLSX.utils.book_new();
+
+  // Sheet 1: Exercise Logs
+  const logData = logs.map((log) => ({
     Date: log.dateKey,
     Time: formatTime(log.timestamp),
     Type: typeMap.get(log.typeId) ?? "Unknown",
@@ -78,21 +99,76 @@ export function downloadExcel(logs: LogEntry[], types: ExerciseType[]): void {
     Timestamp: new Date(log.timestamp).toISOString(),
   }));
 
-  // Create workbook and worksheet
-  const worksheet = XLSX.utils.json_to_sheet(data);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Exercise Logs");
-
-  // Set column widths
-  worksheet["!cols"] = [
+  const logSheet = XLSX.utils.json_to_sheet(logData);
+  logSheet["!cols"] = [
     { wch: 12 }, // Date
     { wch: 10 }, // Time
     { wch: 15 }, // Type
     { wch: 8 }, // Count
     { wch: 25 }, // Timestamp
   ];
+  XLSX.utils.book_append_sheet(workbook, logSheet, "Exercise Logs");
 
-  // Generate and download
+  // Sheet 2: Body Measurements
+  const sortedMeasurements = [...measurements].sort(
+    (a, b) => a.timestamp - b.timestamp
+  );
+  const measurementData = sortedMeasurements.map((m) => ({
+    Date: m.dateKey,
+    Time: formatTime(m.timestamp),
+    "Weight (kg)": m.weightKg,
+    "Waist (cm)": m.waistCm,
+    "Thigh (cm)": m.thighCm,
+    "Bicep (cm)": m.bicepCm,
+    "Hips (cm)": m.hipsCm,
+    "Chest (cm)": m.chestCm,
+    "Neck (cm)": m.neckCm,
+    "Wrist (cm)": m.wristCm,
+    Timestamp: new Date(m.timestamp).toISOString(),
+  }));
+
+  const measurementSheet = XLSX.utils.json_to_sheet(measurementData, {
+    header: [...MEASUREMENT_HEADERS],
+  });
+  measurementSheet["!cols"] = [
+    { wch: 12 }, // Date
+    { wch: 10 }, // Time
+    { wch: 12 }, // Weight (kg)
+    { wch: 11 }, // Waist (cm)
+    { wch: 11 }, // Thigh (cm)
+    { wch: 11 }, // Bicep (cm)
+    { wch: 10 }, // Hips (cm)
+    { wch: 11 }, // Chest (cm)
+    { wch: 10 }, // Neck (cm)
+    { wch: 10 }, // Wrist (cm)
+    { wch: 25 }, // Timestamp
+  ];
+
+  // Apply 2-decimal number format to measurement value cells
+  for (let row = 1; row <= sortedMeasurements.length; row++) {
+    for (let col = 2; col <= 9; col++) {
+      const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+      const cell = measurementSheet[cellRef];
+      if (cell && typeof cell.v === "number") {
+        cell.z = "0.00";
+      }
+    }
+  }
+
+  XLSX.utils.book_append_sheet(workbook, measurementSheet, "Body Measurements");
+
+  return workbook;
+}
+
+/**
+ * Downloads logs and measurements as an Excel file
+ */
+export function downloadExcel(
+  logs: LogEntry[],
+  types: ExerciseType[],
+  measurements: Measurement[]
+): void {
+  const workbook = buildExcelWorkbook(logs, types, measurements);
   const date = new Date().toISOString().split("T")[0];
   XLSX.writeFile(workbook, `exercise-tracker-${date}.xlsx`);
 }
@@ -130,7 +206,16 @@ export async function parseJSONFile(
       };
     }
 
-    return { success: true, data: data as AppState };
+    // Normalise optional arrays so reducer and UI can rely on their presence
+    const normalised = data as Record<string, unknown>;
+    if (!Array.isArray(normalised.breaks)) {
+      normalised.breaks = [];
+    }
+    if (!Array.isArray(normalised.measurements)) {
+      normalised.measurements = [];
+    }
+
+    return { success: true, data: normalised as unknown as AppState };
   } catch {
     return { success: false, error: "Failed to parse JSON file" };
   }

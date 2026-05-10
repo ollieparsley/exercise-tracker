@@ -25,11 +25,26 @@ export interface Break {
   label?: string;
 }
 
+export interface Measurement {
+  id: string;
+  timestamp: number;
+  dateKey: string; // YYYY-MM-DD format
+  weightKg?: number;
+  waistCm?: number;
+  thighCm?: number;
+  bicepCm?: number;
+  hipsCm?: number;
+  chestCm?: number;
+  neckCm?: number;
+  wristCm?: number;
+}
+
 export interface AppState {
   settings: Settings;
   types: ExerciseType[];
   logs: LogEntry[];
   breaks: Break[];
+  measurements: Measurement[];
 }
 
 export type ActionType =
@@ -43,6 +58,9 @@ export type ActionType =
   | { type: "ADD_BREAK"; payload: Break }
   | { type: "UPDATE_BREAK"; payload: Break }
   | { type: "DELETE_BREAK"; payload: string }
+  | { type: "ADD_MEASUREMENT"; payload: Measurement }
+  | { type: "UPDATE_MEASUREMENT"; payload: Measurement }
+  | { type: "DELETE_MEASUREMENT"; payload: string }
   | { type: "IMPORT_STATE"; payload: AppState }
   | { type: "RESET_STATE" };
 
