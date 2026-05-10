@@ -12,17 +12,8 @@ import {
 import { Card } from "@/components/ui/Card";
 import { useApp } from "@/hooks/useApp";
 import { aggregateLogsForChart } from "@/lib/calculations";
-import { getDaysInCurrentMonth } from "@/lib/date-utils";
-
-type ChartRange = "7d" | "14d" | "30d" | "60d" | "mtd";
-
-const rangeOptions: { value: ChartRange; label: string }[] = [
-  { value: "7d", label: "7 Days" },
-  { value: "14d", label: "14 Days" },
-  { value: "30d", label: "30 Days" },
-  { value: "60d", label: "60 Days" },
-  { value: "mtd", label: "This Month" },
-];
+import { TimeRangeSelector } from "./TimeRangeSelector";
+import { getDaysForRange, type ChartRange } from "@/lib/timeRange";
 
 interface TooltipPayloadItem {
   value?: number | string;
@@ -62,21 +53,6 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   );
 }
 
-function getDaysForRange(range: ChartRange): number {
-  switch (range) {
-    case "7d":
-      return 7;
-    case "14d":
-      return 14;
-    case "30d":
-      return 30;
-    case "60d":
-      return 60;
-    case "mtd":
-      return getDaysInCurrentMonth();
-  }
-}
-
 export function PerformanceChart() {
   const { state } = useApp();
   const [range, setRange] = useState<ChartRange>("14d");
@@ -114,24 +90,7 @@ export function PerformanceChart() {
     <Card noPadding className="pb-2">
       <div className="px-4 pt-4 flex items-center justify-between gap-2">
         <h3 className="text-navy font-medium">Performance</h3>
-        <div className="flex gap-1">
-          {rangeOptions.map((option) => (
-            <button
-              key={option.value}
-              onClick={() => setRange(option.value)}
-              className={`
-                px-2 py-1 text-xs font-medium transition-colors
-                ${
-                  range === option.value
-                    ? "bg-blue text-cream"
-                    : "bg-mint text-navy/70 hover:text-navy"
-                }
-              `}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        <TimeRangeSelector value={range} onChange={setRange} />
       </div>
 
       <div

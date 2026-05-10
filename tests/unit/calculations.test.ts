@@ -5,10 +5,12 @@ import {
   getTodayProgress,
   calculateDebt,
   aggregateLogsForChart,
+  aggregateMeasurementsForChart,
+  getPopulatedMeasurementFields,
   getTotalCount,
   getLogsForDate,
 } from "@/lib/calculations";
-import type { LogEntry, ExerciseType } from "@/types";
+import type { LogEntry, ExerciseType, Measurement } from "@/types";
 
 const createLog = (
   id: string,
@@ -253,6 +255,109 @@ describe("calculations", () => {
       ];
       const result = getLogsForDate(logs, "2024-01-15");
       expect(result.map((l) => l.id)).toEqual(["2", "3", "1"]);
+    });
+  });
+
+  describe("aggregateMeasurementsForChart", () => {
+    const createMeasurement = (
+      id: string,
+      dateKey: string,
+      timestamp: number,
+      fields: Partial<Omit<Measurement, "id" | "dateKey" | "timestamp">> = {}
+    ): Measurement => ({
+      id,
+      dateKey,
+      timestamp,
+      ...fields,
+    });
+
+    it("returns exactly N points for an N-day window", () => {
+      const endDate = new Date("2024-01-15T12:00:00Z");
+      const points = aggregateMeasurementsForChart([], 7, endDate);
+      expect(points).toHaveLength(7);
+    });
+
+    it("fills missing dates with all metrics undefined", () => {
+      const endDate = new Date("2024-01-15T12:00:00Z");
+      const points = aggregateMeasurementsForChart([], 3, endDate);
+      for (const point of points) {
+        expect(point.weightKg).toBeUndefined();
+        expect(point.waistCm).toBeUndefined();
+        expect(point.wristCm).toBeUndefined();
+      }
+    });
+
+    it("places measurement values on the matching dateKey", () => {
+      const endDate = new Date("2024-01-15T12:00:00Z");
+      const measurements: Measurement[] = [
+        createMeasurement("m1", "2024-01-14", 1000, {
+          weightKg: 80,
+          waistCm: 88,
+        }),
+      ];
+      const points = aggregateMeasurementsForChart(measurements, 3, endDate);
+      const dayPoint = points.find((p) => p.dateKey === "2024-01-14");
+      expect(dayPoint?.weightKg).toBe(80);
+      expect(dayPoint?.waistCm).toBe(88);
+      expect(dayPoint?.thighCm).toBeUndefined();
+    });
+
+    it("picks the latest measurement when multiple share a dateKey", () => {
+      const endDate = new Date("2024-01-15T12:00:00Z");
+      const measurements: Measurement[] = [
+        createMeasurement("early", "2024-01-15", 1000, { weightKg: 82.0 }),
+        createMeasurement("late", "2024-01-15", 5000, { weightKg: 81.5 }),
+        createMeasurement("middle", "2024-01-15", 3000, { weightKg: 81.75 }),
+      ];
+      const points = aggregateMeasurementsForChart(measurements, 1, endDate);
+      expect(points[0].weightKg).toBe(81.5);
+    });
+
+    it("ignores measurements outside the date window", () => {
+      const endDate = new Date("2024-01-15T12:00:00Z");
+      const measurements: Measurement[] = [
+        createMeasurement("inside", "2024-01-14", 1000, { weightKg: 80 }),
+        createMeasurement("outside", "2024-01-01", 1000, { weightKg: 90 }),
+      ];
+      const points = aggregateMeasurementsForChart(measurements, 3, endDate);
+      const weights = points
+        .map((p) => p.weightKg)
+        .filter((v): v is number => v !== undefined);
+      expect(weights).toEqual([80]);
+    });
+  });
+
+  describe("getPopulatedMeasurementFields", () => {
+    it("returns an empty list when no points have values", () => {
+      const fields = getPopulatedMeasurementFields([
+        { dateKey: "2024-01-15", label: "Jan 15" },
+      ]);
+      expect(fields).toEqual([]);
+    });
+
+    it("includes fields that have at least one numeric value", () => {
+      const fields = getPopulatedMeasurementFields([
+        { dateKey: "2024-01-15", label: "Jan 15", weightKg: 80 },
+        { dateKey: "2024-01-16", label: "Jan 16", waistCm: 88 },
+      ]);
+      expect(fields).toEqual(["weightKg", "waistCm"]);
+    });
+
+    it("preserves canonical field order regardless of insertion order", () => {
+      const fields = getPopulatedMeasurementFields([
+        { dateKey: "2024-01-15", label: "Jan 15", wristCm: 17 },
+        { dateKey: "2024-01-16", label: "Jan 16", weightKg: 80 },
+      ]);
+      expect(fields).toEqual(["weightKg", "wristCm"]);
+    });
+
+    it("excludes fields with only undefined entries", () => {
+      const fields = getPopulatedMeasurementFields([
+        { dateKey: "2024-01-15", label: "Jan 15", weightKg: 80 },
+        { dateKey: "2024-01-16", label: "Jan 16" },
+      ]);
+      expect(fields).not.toContain("waistCm");
+      expect(fields).toContain("weightKg");
     });
   });
 });
